@@ -64,7 +64,7 @@ window.onload = function init() {
 
     u_theta_loc = gl.getUniformLocation( program, "u_theta")
     
-    tessellation(9) // Allocate max
+    tessellation(9, shape) // Allocate max
 
     //window.requestAnimationFrame(step)
     render(0.0)
@@ -72,16 +72,23 @@ window.onload = function init() {
 }
 
 // In clip coordinates
-var vertices = [    
+var equilateral_triangle = [    
     [ 0.0000, 0.9428 ],
     [ -0.8165, -0.4714 ],
     [ 0.8165, -0.4714 ]
 ]
 
-function tessellation(t) {
+function gen_random_triangle() {
+    return [
+        [Math.random()*1.8-0.9, Math.random()*1.8-0.9],
+        [Math.random()*1.8-0.9, Math.random()*1.8-0.9],
+        [Math.random()*1.8-0.9, Math.random()*1.8-0.9]
+    ]
+}
+
+function tessellation(count, vertices) {
     points = []
-    divide_triangle(vertices[0], vertices[1], vertices[2], t, points)
-    console.log(points.length)
+    divide_triangle(vertices[0], vertices[1], vertices[2], count, points)
    
     gl.bufferData( gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW)
     // To not re-allocate the buffer each time, replace the data
@@ -126,11 +133,13 @@ function divide_triangle( a, b, c, count, points ) {
 <label for=angle>&theta;(angle)</label>
 <input type=range min=0 max=100 value=0 id=angle step=1 oninput="change_theta(value)">
 <output for=angle id=theta>0</output>
-
+<br />
 <label for=tessellation>tessellation (iterations)</label>
 <input type=range min=0 max=9 value=9 id=tessellation step=1 oninput="change_tessellation(value)">
 <output for=tessellation id=iterations>9</output>
-
+<br />
+<label><input type='checkbox' onclick='change_random(this);'>Random Triangle</label>
+<br />
 <script>
 var theta = 0.0
 function change_theta(t) {
@@ -139,10 +148,24 @@ function change_theta(t) {
     render(theta)
 }
 
+var count = 9
 function change_tessellation(t) {
     document.querySelector('#iterations').value = t
-    var count = parseInt(t)
-    tessellation(count)
+    count = parseInt(t)
+    tessellation(count, shape)
+    render(theta)
+}
+
+var shape = equilateral_triangle
+var random = false
+function change_random(cb) {
+    random = cb.checked
+    if (random) {
+        shape = gen_random_triangle()
+    } else {
+        shape = equilateral_triangle
+    }
+    tessellation(count, shape)
     render(theta)
 }
 </script>
