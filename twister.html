@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vPosition;
+
+uniform float u_theta;
+
+varying float v_change;
+varying float v_d;
+void main() {
+    // Must have vertex shader, must set gl_Position
+    v_d = sqrt(vPosition[0]*vPosition[0] + vPosition[1]*vPosition[1]);
+    v_change = v_d * u_theta;
+    gl_Position = vPosition;
+    gl_Position[0] = vPosition[0] * cos(v_change) - vPosition[1] * sin(v_change);
+    gl_Position[1] = vPosition[0] * sin(v_change) + vPosition[1] * cos(v_change);   
+}
+</script>
+<script id="fragment-shader" type="x-shader/x-fragment">
+// Must set the precision
+precision mediump float;
+
+void main() {
+  // Must have a fragment shader, must set gl_FragColor
+  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); // red and opaque
+}
+</script>
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="initShaders.js"></script>
+<script type="text/javascript" src="MV.js"></script>
+<!--
+<script type="text/javascript" src="square.js"></script>
+-->
+<script>
+// set and clear
+// gl.enable(gl.THING)
+// gl.clear(gl.THING)
+
+var gl;
+var points = []
+var u_theta_loc;
+var program;
+
+window.onload = function init() {
+    var canvas = document.getElementById('gl-canvas')
+    gl = WebGLUtils.setupWebGL(canvas);
+    if (!gl) { alert("WebGL isn't available") }
+    
+    // Use all the canvas
+    gl.viewport(0, 0, canvas.width, canvas.height)
+    gl.clearColor(1.0, 1.0, 1.0, 1.0)
+    
+    program = initShaders(gl, "vertex-shader", "fragment-shader")
+    
+    gl.useProgram( program )
+
+    var bufferId = gl.createBuffer()
+    gl.bindBuffer( gl.ARRAY_BUFFER, bufferId)
+
+    var vPosition = gl.getAttribLocation( program, "vPosition")
+    gl.vertexAttribPointer( vPosition, 2, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray( vPosition )
+
+    u_theta_loc = gl.getUniformLocation( program, "u_theta")
+    
+    tessellation(9) // Allocate max
+
+    //window.requestAnimationFrame(step)
+    render(0.0)
+
+}
+
+// In clip coordinates
+var vertices = [    
+    [ 0.0000, 0.9428 ],
+    [ -0.8165, -0.4714 ],
+    [ 0.8165, -0.4714 ]
+]
+
+function tessellation(t) {
+    points = []
+    divide_triangle(vertices[0], vertices[1], vertices[2], t, points)
+    console.log(points.length)
+   
+    gl.bufferData( gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW)
+    // To not re-allocate the buffer each time, replace the data
+    // Might want to specify gl.DYNAMIC_DRAW
+    //gl.bufferSubData(gl.ARRAY_BUFFER, particleId*particleSize*sizeOfFloat, data);
+    
+}
+
+function render(theta) {
+    // Set the translation.
+    gl.uniform1f(u_theta_loc, theta);
+    gl.clear( gl.COLOR_BUFFER_BIT )
+    gl.drawArrays( gl.TRIANGLES, 0, points.length)
+}
+
+//var theta = 0.0
+//function step(timestamp) {
+//    theta = theta + 0.01
+//    render(theta)
+//    window.requestAnimationFrame(step)
+//}
+
+
+function divide_triangle( a, b, c, count, points ) {
+    if ( count === 0 ) {
+        points.push( a, b, c ) // append triangle
+    } else {
+        var ab = mix( a, b, 0.5 )
+        var ac = mix( a, c, 0.5 )
+        var bc = mix( b, c, 0.5 )
+        --count
+        divide_triangle( a, ab, ac, count, points )
+        divide_triangle( c, ac, bc, count, points )
+        divide_triangle( b, bc, ab, count, points )
+        divide_triangle( ab, bc, ac, count, points )
+    }
+}
+
+</script>
+<body>
+
+<label for=angle>&theta;(angle)</label>
+<input type=range min=0 max=100 value=0 id=angle step=1 oninput="change_theta(value)">
+<output for=angle id=theta>0</output>
+
+<label for=tessellation>tessellation (iterations)</label>
+<input type=range min=0 max=9 value=9 id=tessellation step=1 oninput="change_tessellation(value)">
+<output for=tessellation id=iterations>9</output>
+
+<script>
+var theta = 0.0
+function change_theta(t) {
+    document.querySelector('#theta').value = t
+    theta = parseFloat(t)
+    render(theta)
+}
+
+function change_tessellation(t) {
+    document.querySelector('#iterations').value = t
+    var count = parseInt(t)
+    tessellation(count)
+    render(theta)
+}
+</script>
+
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser does not support the HTML5 canvas element.
+</canvas>
+</body>
+</html>
